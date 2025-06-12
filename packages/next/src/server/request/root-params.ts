@@ -15,7 +15,7 @@ import {
 } from '../app-render/work-unit-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import type { FallbackRouteParams } from './fallback-params'
-import type { Params } from './params'
+import type { Params, ParamValue } from './params'
 import {
   describeStringPropertyAccess,
   wellKnownProperties,
@@ -189,4 +189,136 @@ function makeErroringRootParams(
   })
 
   return promise
+}
+
+/**
+ * Used for the compiler-generated `next/root-params` module.
+ * @internal
+ */
+export async function getRootParam(paramName: string): Promise<ParamValue> {
+  const apiName = `\`import('next/root-params').${paramName}()\``
+
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError(`Missing workStore in ${apiName}`)
+  }
+
+  const workUnitStore = workUnitAsyncStorage.getStore()
+
+  if (!workUnitStore) {
+    throw new Error(
+      `Route ${workStore.route} used ${apiName} in Pages Router. This API is only available within App Router.`
+    )
+  }
+
+  switch (workUnitStore.type) {
+    case 'unstable-cache':
+    case 'cache': {
+      throw new Error(
+        `Route ${workStore.route} used ${apiName} inside \`"use cache"\` or \`unstable_cache\`. Support for this API inside cache scopes is planned for a future version of Next.js.`
+      )
+    }
+    case 'prerender':
+    case 'prerender-client':
+    case 'prerender-ppr':
+    case 'prerender-legacy': {
+      return createPrerenderRootParamPromise(
+        paramName,
+        workStore,
+        workUnitStore,
+        apiName
+      )
+    }
+    case 'request': {
+      return Promise.resolve(workUnitStore.rootParams[paramName])
+    }
+    default: {
+      workUnitStore satisfies never
+    }
+  }
+}
+
+function createPrerenderRootParamPromise(
+  paramName: string,
+  workStore: WorkStore,
+  prerenderStore: PrerenderStore,
+  apiName: string
+): Promise<ParamValue> {
+  switch (prerenderStore.type) {
+    case 'prerender-client': {
+      throw new InvariantError(
+        `${apiName} must not be used within a client component. Next.js should be preventing ${apiName} from being included in client components statically, but did not in this case.`
+      )
+    }
+    case 'prerender':
+    case 'prerender-legacy':
+    case 'prerender-ppr':
+    default:
+  }
+
+  const underlyingParams = prerenderStore.rootParams
+  const fallbackParams = workStore.fallbackRouteParams
+
+  if (fallbackParams && fallbackParams.has(paramName)) {
+    // The param is a fallback, so it should be treated as dynamic.
+    switch (prerenderStore.type) {
+      case 'prerender': {
+        // We are in a dynamicIO prerender.
+        return makeHangingPromise<ParamValue>(
+          prerenderStore.renderSignal,
+          apiName
+        )
+      }
+      case 'prerender-ppr':
+      case 'prerender-legacy': {
+        // We aren't in a dynamicIO prerender, but the param is a fallback,
+        // so we need to make an erroring params object which will postpone/error if you access it
+        return makeErroringRootParamPromise(
+          paramName,
+          workStore,
+          prerenderStore,
+          apiName
+        )
+      }
+      default: {
+        prerenderStore satisfies never
+      }
+    }
+  }
+
+  // If the param is not a fallback param, we just return the statically available value.
+  return Promise.resolve(underlyingParams[paramName])
+}
+
+/** Deliberately async -- we want to create a rejected promise, not error synchronously. */
+async function makeErroringRootParamPromise(
+  paramName: string,
+  workStore: WorkStore,
+  prerenderStore: PrerenderStorePPR | PrerenderStoreLegacy,
+  apiName: string
+): Promise<ParamValue> {
+  const expression = describeStringPropertyAccess(apiName, paramName)
+  // In most dynamic APIs, we also throw if `dynamic = "error"`.
+  // However, root params are only dynamic when we're generating a fallback shell,
+  // and even with `dynamic = "error"` we still support generating dynamic fallback shells.
+  // TODO: remove this comment when dynamicIO is the default since there will be no `dynamic = "error"`
+  switch (prerenderStore.type) {
+    case 'prerender-ppr': {
+      return postponeWithTracking(
+        workStore.route,
+        expression,
+        prerenderStore.dynamicTracking
+      )
+    }
+    case 'prerender-legacy': {
+      return throwToInterruptStaticGeneration(
+        expression,
+        workStore,
+        prerenderStore
+      )
+    }
+    default: {
+      prerenderStore satisfies never
+    }
+  }
 }
