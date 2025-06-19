@@ -725,5 +725,7 @@
   "724": "%s must not be used within a client component. Next.js should be preventing it from being included in client components statically, but did not in this case.",
   "725": "Route %s used %s in Pages Router. This API is only available within App Router.",
   "726": "\\`unstable_rootParams\\` must not be used within a client component. Next.js should be preventing it from being included in client components statically, but did not in this case.",
-  "727": "Missing workStore in %s"
+  "727": "Missing workStore in %s",
+  "728": "Route %s used %s inside a Route Handler. Support for this API in Route Handlers is planned for a future version of Next.js.",
+  "729": "%s was used inside a Server Action. This is not supported. Functions from 'next/root-params' can only be called in the context of a route."
 }
