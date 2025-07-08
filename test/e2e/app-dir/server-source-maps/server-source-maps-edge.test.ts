@@ -58,7 +58,7 @@ describe('app-dir - server source maps edge runtime', () => {
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
       expect(cliOutput).toContain(
-        '\n ⨯ Error: ssr-throw' +
+        '\nError: ssr-throw' +
           '\n    at throwError (app/ssr-throw/page.js:4:8)' +
           '\n    at Page (app/ssr-throw/page.js:8:2)' +
           '\n  2 |' +
@@ -88,7 +88,7 @@ describe('app-dir - server source maps edge runtime', () => {
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
       expect(cliOutput).toContain(
-        '\n ⨯ Error: rsc-throw' +
+        '\nError: rsc-throw' +
           '\n    at throwError (app/rsc-throw/page.js:2:8)' +
           '\n    at Page (app/rsc-throw/page.js:6:2)' +
           '\n  1 | function throwError() {' +
