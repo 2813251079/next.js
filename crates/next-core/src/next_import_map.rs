@@ -119,7 +119,9 @@ pub async fn get_next_client_import_map(
     .await?;
 
     match &ty {
-        ClientContextType::Pages { .. } => {}
+        ClientContextType::Pages { .. } => {
+            insert_pages_api_aliases(&mut import_map, project_path.clone());
+        }
         ClientContextType::App { app_dir } => {
             let react_flavor = if *next_config.enable_ppr().await?
                 || *next_config.enable_taint().await?
@@ -199,29 +201,8 @@ pub async fn get_next_client_import_map(
                     &format!("next/dist/compiled/react-server-dom-turbopack{react_flavor}/*"),
                 ),
             );
-            insert_exact_alias_or_js(
-                &mut import_map,
-                "next/head",
-                request_to_import_mapping(
-                    project_path.clone(),
-                    "next/dist/client/components/noop-head",
-                ),
-            );
-            insert_exact_alias_or_js(
-                &mut import_map,
-                "next/dynamic",
-                request_to_import_mapping(project_path.clone(), "next/dist/shared/lib/app-dynamic"),
-            );
-            insert_exact_alias_or_js(
-                &mut import_map,
-                "next/link",
-                request_to_import_mapping(project_path.clone(), "next/dist/client/app-dir/link"),
-            );
-            insert_exact_alias_or_js(
-                &mut import_map,
-                "next/form",
-                request_to_import_mapping(project_path.clone(), "next/dist/client/app-dir/form"),
-            );
+
+            insert_app_api_aliases(&mut import_map, project_path.clone(), None);
         }
         ClientContextType::Fallback => {}
         ClientContextType::Other => {}
@@ -343,33 +324,13 @@ pub async fn get_next_server_import_map(
             import_map.insert_wildcard_alias("styled-jsx/", external);
             // TODO: we should not bundle next/dist/build/utils in the pages renderer at all
             import_map.insert_wildcard_alias("next/dist/build/utils", external);
+
+            insert_pages_api_aliases(&mut import_map, project_path.clone());
         }
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
-            insert_exact_alias_or_js(
-                &mut import_map,
-                "next/head",
-                request_to_import_mapping(
-                    project_path.clone(),
-                    "next/dist/client/components/noop-head",
-                ),
-            );
-            insert_exact_alias_or_js(
-                &mut import_map,
-                "next/dynamic",
-                request_to_import_mapping(project_path.clone(), "next/dist/shared/lib/app-dynamic"),
-            );
-            insert_exact_alias_or_js(
-                &mut import_map,
-                "next/link",
-                request_to_import_mapping(project_path.clone(), "next/dist/client/app-dir/link"),
-            );
-            insert_exact_alias_or_js(
-                &mut import_map,
-                "next/form",
-                request_to_import_mapping(project_path.clone(), "next/dist/client/app-dir/form"),
-            );
+            insert_app_api_aliases(&mut import_map, project_path.clone(), Some(&ty));
         }
         ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {}
     }
@@ -414,29 +375,13 @@ pub async fn get_next_edge_import_map(
         },
     );
 
-    // Alias the usage of next public APIs
-    insert_exact_alias_map(
-        &mut import_map,
-        project_path.clone(),
-        fxindexmap! {
-            "next/app" => "next/dist/api/app".to_string(),
-            "next/document" => "next/dist/api/document".to_string(),
-            "next/dynamic" => "next/dist/api/dynamic".to_string(),
-            "next/form" => "next/dist/api/form".to_string(),
-            "next/head" => "next/dist/api/head".to_string(),
-            "next/headers" => "next/dist/api/headers".to_string(),
-            "next/image" => "next/dist/api/image".to_string(),
-            "next/link" => "next/dist/api/link".to_string(),
-            "next/form" => "next/dist/api/form".to_string(),
-            "next/navigation" => "next/dist/api/navigation".to_string(),
-            "next/router" => "next/dist/api/router".to_string(),
-            "next/script" => "next/dist/api/script".to_string(),
-            "next/server" => "next/dist/api/server".to_string(),
-            "next/og" => "next/dist/api/og".to_string(),
-
-            // Alias built-in @vercel/og to edge bundle for edge runtime
-            "next/dist/compiled/@vercel/og/index.node.js" => "next/dist/compiled/@vercel/og/index.edge.js".to_string(),
-        },
+    // Alias built-in @vercel/og to edge bundle for edge runtime
+    import_map.insert_exact_alias(
+        "next/dist/compiled/@vercel/og/index.node.js",
+        request_to_import_mapping(
+            project_path.clone(),
+            "next/dist/compiled/@vercel/og/index.edge.js",
+        ),
     );
 
     insert_next_shared_aliases(
@@ -618,8 +563,11 @@ async fn insert_next_server_special_aliases(
     );
 
     match &ty {
-        ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {}
-        ServerContextType::PagesData { .. } => {}
+        ServerContextType::Pages { .. }
+        | ServerContextType::PagesApi { .. }
+        | ServerContextType::PagesData { .. } => {
+            insert_pages_api_aliases(import_map, project_path.clone());
+        }
         // the logic closely follows the one in createRSCAliases in webpack-config.ts
         ServerContextType::AppSSR { app_dir }
         | ServerContextType::AppRSC { app_dir, .. }
@@ -634,7 +582,7 @@ async fn insert_next_server_special_aliases(
                 request_to_import_mapping(next_package.clone(), "styled-jsx/*"),
             );
 
-            rsc_aliases(
+            apply_vendored_react_aliases_server(
                 import_map,
                 project_path.clone(),
                 ty.clone(),
@@ -642,9 +590,11 @@ async fn insert_next_server_special_aliases(
                 next_config,
             )
             .await?;
+
+            insert_app_api_aliases(import_map, project_path.clone(), Some(&ty));
         }
         ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {
-            rsc_aliases(
+            apply_vendored_react_aliases_server(
                 import_map,
                 project_path.clone(),
                 ty.clone(),
@@ -886,44 +836,7 @@ async fn apply_vendored_react_aliases_server(
         "react-dom/client" => format!("next/dist/compiled/react-dom{react_channel}/{react_client_package}"),
     });
 
-    let mut alias = react_alias;
-    if react_condition == "server" {
-        // This is used in the server runtime to import React Server Components.
-        alias.extend(fxindexmap! {
-            "next/navigation" => format!("next/dist/api/navigation.react-server"),
-        });
-    }
-
-    insert_exact_alias_map(import_map, project_path, alias);
-
-    Ok(())
-}
-
-async fn rsc_aliases(
-    import_map: &mut ImportMap,
-    project_path: FileSystemPath,
-    ty: ServerContextType,
-    runtime: NextRuntime,
-    next_config: Vc<NextConfig>,
-) -> Result<()> {
-    apply_vendored_react_aliases_server(
-        import_map,
-        project_path.clone(),
-        ty.clone(),
-        runtime,
-        next_config,
-    )
-    .await?;
-
-    let mut alias = FxIndexMap::default();
-    if ty.should_use_react_server_condition() {
-        // This is used in the server runtime to import React Server Components.
-        alias.extend(fxindexmap! {
-            "next/navigation" => format!("next/dist/api/navigation.react-server"),
-        });
-    }
-
-    insert_exact_alias_map(import_map, project_path.clone(), alias);
+    insert_exact_alias_map(import_map, project_path, react_alias);
 
     Ok(())
 }
@@ -1254,6 +1167,74 @@ async fn insert_turbopack_dev_alias(import_map: &mut ImportMap) -> Result<()> {
     Ok(())
 }
 
+/// App-router aliases for App Router API-subpackages.
+fn insert_shared_api_aliases(import_map: &mut ImportMap, project_path: FileSystemPath) {
+    insert_exact_alias_map(
+        import_map,
+        project_path.clone(),
+        fxindexmap! {
+            "next/app" => "next/dist/api/app".to_string(),
+            "next/document" => "next/dist/api/document".to_string(),
+            "next/form" => "next/dist/api/form".to_string(),
+            "next/headers" => "next/dist/api/headers".to_string(),
+            "next/image" => "next/dist/api/image".to_string(),
+            "next/router" => "next/dist/api/router".to_string(),
+            "next/script" => "next/dist/api/script".to_string(),
+            "next/server" => "next/dist/api/server".to_string(),
+            "next/og" => "next/dist/api/og".to_string(),
+        },
+    )
+}
+
+/// App-router aliases for App Router API-subpackages.
+fn insert_app_api_aliases(
+    import_map: &mut ImportMap,
+    project_path: FileSystemPath,
+    ty: Option<&ServerContextType>,
+) {
+    insert_shared_api_aliases(import_map, project_path.clone());
+    insert_exact_alias_or_js_map(
+        import_map,
+        project_path.clone(),
+        fxindexmap! {
+            "next/head" => "next/dist/client/components/noop-head".to_string(),
+            "next/dynamic" => "next/dist/api/app-dynamic".to_string(),
+            "next/link" => "next/dist/client/app-dir/link".to_string(),
+            "next/form" => "next/dist/client/app-dir/form".to_string(),
+        },
+    );
+
+    insert_exact_alias_or_js(
+        import_map,
+        "next/navigation",
+        request_to_import_mapping(
+            project_path.clone(),
+            if ty.is_some_and(|ty| ty.should_use_react_server_condition()) {
+                "next/dist/api/navigation.react-server"
+            } else {
+                "next/dist/api/navigation"
+            },
+        ),
+    );
+}
+
+/// App-router aliases for App Router API-subpackages.
+fn insert_pages_api_aliases(import_map: &mut ImportMap, project_path: FileSystemPath) {
+    insert_shared_api_aliases(import_map, project_path.clone());
+    insert_exact_alias_map(
+        import_map,
+        project_path.clone(),
+        fxindexmap! {
+            "next/dynamic" => "next/dist/api/dynamic".to_string(),
+            "next/head" => "next/dist/api/head".to_string(),
+            "next/link" => "next/dist/api/link".to_string(),
+            "next/form" => "next/dist/api/form".to_string(),
+            "next/navigation" => "next/dist/api/navigation".to_string(),
+            "next/document" => "next/dist/api/document".to_string(),
+        },
+    )
+}
+
 /// Handles instrumentation-client.ts bundling logic
 async fn insert_instrumentation_client_alias(
     import_map: &mut ImportMap,
@@ -1282,6 +1263,20 @@ fn insert_exact_alias_or_js(
 ) {
     import_map.insert_exact_alias(pattern, mapping);
     import_map.insert_exact_alias(format!("{pattern}.js"), mapping);
+}
+
+fn insert_exact_alias_or_js_map(
+    import_map: &mut ImportMap,
+    project_path: FileSystemPath,
+    map: FxIndexMap<&'static str, String>,
+) {
+    for (pattern, request) in map {
+        insert_exact_alias_or_js(
+            import_map,
+            pattern,
+            request_to_import_mapping(project_path.clone(), &request),
+        );
+    }
 }
 
 /// Creates a direct import mapping to the result of resolving a request
