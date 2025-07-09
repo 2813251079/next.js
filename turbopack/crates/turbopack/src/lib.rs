@@ -26,7 +26,7 @@ use graph::{AggregatedGraph, AggregatedGraphNodeContent, aggregate};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 pub use turbopack_core::condition;
 use turbopack_core::{
@@ -40,7 +40,6 @@ use turbopack_core::{
     module::Module,
     output::OutputAsset,
     raw_module::RawModule,
-    reference::{ModuleReference, TracedModuleReference},
     reference_type::{
         CssReferenceSubType, EcmaScriptModulesReferenceSubType, ImportContext, ImportWithType,
         InnerAssets, ReferenceType,
@@ -55,7 +54,9 @@ use turbopack_core::{
 pub use turbopack_css as css;
 pub use turbopack_ecmascript as ecmascript;
 use turbopack_ecmascript::{
-    references::external_module::{CachedExternalModule, CachedExternalType},
+    references::external_module::{
+        CachedExternalModule, CachedExternalTracingMode, CachedExternalType,
+    },
     tree_shake::asset::EcmascriptModulePartAsset,
 };
 use turbopack_json::JsonModuleAsset;
@@ -769,8 +770,6 @@ impl AssetContext for ModuleAssetContext {
 
         let result = result.await?;
 
-        let affecting_sources = &result.affecting_sources;
-
         let result = result
             .map_primary_items(|item| {
                 let reference_type = reference_type.clone();
@@ -789,89 +788,35 @@ impl AssetContext for ModuleAssetContext {
                         }
                         ResolveResultItem::External { name, ty, traced } => {
                             let replacement = if replace_externals {
-                                let additional_refs: Vec<Vc<Box<dyn ModuleReference>>> = if let (
-                                    ExternalTraced::Traced,
-                                    Some(tracing_root),
-                                ) = (
-                                    traced,
-                                    self.module_options_context()
+                                let tracing_mode = if traced == ExternalTraced::Traced
+                                    && let Some(tracing_root) = &self
+                                        .module_options_context()
                                         .await?
                                         .enable_externals_tracing
-                                        .clone(),
-                                ) {
-                                    let externals_context = externals_tracing_module_context(ty);
-                                    let root_origin = tracing_root.join("_")?;
+                                {
+                                    // result.affecting_sources can be ignored for tracing, as this
+                                    // request will later be resolved relative to tracing_root
+                                    // anyway.
 
-                                    // Normalize reference type, there is no such thing as a
-                                    // `ReferenceType::EcmaScriptModules(ImportPart(Evaluation))`
-                                    // for externals (and otherwise, this causes duplicate
-                                    // CachedExternalModules for both `ImportPart(Evaluation)` and
-                                    // `ImportPart(Export("CacheProvider"))`)
-                                    let reference_type = match reference_type {
-                                        ReferenceType::EcmaScriptModules(_) => {
-                                            ReferenceType::EcmaScriptModules(Default::default())
-                                        }
-                                        ReferenceType::CommonJs(_) => {
-                                            ReferenceType::CommonJs(Default::default())
-                                        }
-                                        ReferenceType::Css(_) => {
-                                            ReferenceType::Css(Default::default())
-                                        }
-                                        ReferenceType::Url(_) => {
-                                            ReferenceType::Url(Default::default())
-                                        }
-                                        _ => ReferenceType::Undefined,
-                                    };
-
-                                    let external_result = externals_context
-                                        .resolve_asset(
-                                            root_origin.clone(),
-                                            Request::parse_string(name.clone()),
-                                            externals_context.resolve_options(
-                                                root_origin,
-                                                reference_type.clone(),
-                                            ),
-                                            reference_type,
-                                        )
-                                        .await?;
-
-                                    let modules = affecting_sources
-                                        .iter()
-                                        .chain(external_result.affecting_sources.iter())
-                                        .map(|s| Vc::upcast::<Box<dyn Module>>(RawModule::new(**s)))
-                                        .chain(
-                                            external_result
-                                                .primary_modules_raw_iter()
-                                                .map(|rvc| *rvc),
-                                        )
-                                        .collect::<FxIndexSet<_>>();
-
-                                    modules
-                                        .into_iter()
-                                        .map(|s| {
-                                            Vc::upcast::<Box<dyn ModuleReference>>(
-                                                TracedModuleReference::new(s),
-                                            )
-                                        })
-                                        .collect()
+                                    CachedExternalTracingMode::Traced {
+                                        externals_context: ResolvedVc::upcast(
+                                            externals_tracing_module_context(ty)
+                                                .to_resolved()
+                                                .await?,
+                                        ),
+                                        root_origin: tracing_root.join("_")?,
+                                    }
                                 } else {
-                                    vec![]
+                                    CachedExternalTracingMode::Untraced
                                 };
 
-                                replace_external(&name, ty, additional_refs, import_externals)
-                                    .await?
+                                replace_external(&name, ty, import_externals, tracing_mode).await?
                             } else {
                                 None
                             };
 
-                            replacement.unwrap_or_else(|| {
-                                ModuleResolveResultItem::External {
-                                    name,
-                                    ty,
-                                    // TODO(micshnic) remove that field entirely ?
-                                    traced: None,
-                                }
-                            })
+                            replacement
+                                .unwrap_or_else(|| ModuleResolveResultItem::External { name, ty })
                         }
                         ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
                         ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
@@ -1000,8 +945,8 @@ pub async fn emit_asset_into_dir(
 pub async fn replace_external(
     name: &RcStr,
     ty: ExternalType,
-    additional_refs: Vec<Vc<Box<dyn ModuleReference>>>,
     import_externals: bool,
+    tracing_mode: CachedExternalTracingMode,
 ) -> Result<Option<ModuleResolveResultItem>> {
     let external_type = match ty {
         ExternalType::CommonJs => CachedExternalType::CommonJs,
@@ -1020,7 +965,7 @@ pub async fn replace_external(
         }
     };
 
-    let module = CachedExternalModule::new(name.clone(), external_type, additional_refs)
+    let module = CachedExternalModule::new(name.clone(), external_type, tracing_mode)
         .to_resolved()
         .await?;
 
