@@ -50,9 +50,8 @@ export function SegmentBoundaryTrigger({
   )
 
   const firstDefinedBoundary = Object.values(boundaries).find((v) => v !== null)
-  const possibleExtension = firstDefinedBoundary
-    ? firstDefinedBoundary.split('.')?.pop()
-    : 'js'
+  const possibleExtension =
+    (firstDefinedBoundary || '').split('.').pop() || 'js'
 
   const fileNames = useMemo(() => {
     return Object.fromEntries(

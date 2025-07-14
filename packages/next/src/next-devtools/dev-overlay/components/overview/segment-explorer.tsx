@@ -269,9 +269,9 @@ function PageSegmentTreeLayerPresentation({
   }
 
   const possibleExtension =
-    filesChildrenKeys.length > 0
-      ? filesChildrenKeys[0].split('.').pop() || 'js'
-      : 'js'
+    normalizeBoundaryFilename(filesChildrenKeys[0] || '')
+      .split('.')
+      .pop() || 'js'
 
   let firstChild = null
 
