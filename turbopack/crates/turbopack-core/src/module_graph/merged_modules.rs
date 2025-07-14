@@ -590,6 +590,16 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         let mut included: FxHashSet<ResolvedVc<Box<dyn Module>>> = FxHashSet::default();
 
         for (original, replacement, replacement_included) in result.into_iter().flatten() {
+            println!(
+                "Merged {:?} into {:#?}",
+                original.ident().to_string().await?,
+                replacement_included
+                    .iter()
+                    .map(|m| m.ident().to_string())
+                    .try_join()
+                    .await?
+            );
+
             replacements.insert(original, replacement);
             replacements_to_original.insert(ResolvedVc::upcast(replacement), original);
             included.extend(replacement_included);
