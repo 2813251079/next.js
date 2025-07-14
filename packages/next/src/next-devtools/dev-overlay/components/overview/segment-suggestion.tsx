@@ -1,44 +1,22 @@
-import { useMemo } from 'react'
 import { FilePill } from './segment-explorer'
-import {
-  isBoundaryFile,
-  getBoundaryOriginFileType,
-} from '../../../../server/app-render/segment-explorer-path'
-import type { SegmentTrieNode } from '../../segment-explorer-trie'
+import { cx } from '../../utils/cx'
 
 export function SegmentSuggestion({
-  segment,
-  node,
   possibleExtension,
+  missingBoundaryTypes,
+  isExpanded,
 }: {
-  segment: string
-  node: SegmentTrieNode
   possibleExtension: string
+  missingBoundaryTypes: string[]
+  isExpanded: boolean
 }) {
-  const isDynamicSegment =
-    segment && segment.startsWith('[') && segment.endsWith(']')
-  const boundaryTypes = ['not-found', 'error'].concat(
-    isDynamicSegment ? ['loading'] : []
-  )
-  const childrenKeys = useMemo(
-    () => Object.keys(node.children),
-    [node.children]
-  )
-  const missingBoundaryTypes = useMemo(() => {
-    const existingBoundaries: string[] = []
-    childrenKeys.forEach((key) => {
-      const childNode = node.children[key]
-      if (!childNode || !childNode.value) return false
-      if (isBoundaryFile(childNode.value.type)) {
-        const boundaryType = getBoundaryOriginFileType(childNode.value.type)
-        existingBoundaries.push(boundaryType)
-      }
-    })
-    return boundaryTypes.filter((type) => !existingBoundaries.includes(type))
-  }, [node.children, childrenKeys, boundaryTypes])
-
   return (
-    <div className="segment-explorer-suggestions">
+    <div
+      className={cx(
+        'segment-explorer-suggestions',
+        isExpanded && 'segment-explorer-suggestions--expanded'
+      )}
+    >
       <p>
         This segment may be missing the following special files:
         {missingBoundaryTypes.map((type) => {

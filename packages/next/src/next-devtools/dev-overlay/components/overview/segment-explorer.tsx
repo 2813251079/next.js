@@ -188,6 +188,26 @@ function PageSegmentTreeLayerPresentation({
     [node.children]
   )
 
+  // Move missingBoundaryTypes calculation from SegmentSuggestion to parent
+  const missingBoundaryTypes = useMemo(() => {
+    const isDynamicSegment =
+      segment && segment.startsWith('[') && segment.endsWith(']')
+    const boundaryTypes = ['not-found', 'error'].concat(
+      isDynamicSegment ? ['loading'] : []
+    )
+
+    const existingBoundaries: string[] = []
+    childrenKeys.forEach((key) => {
+      const childNode = node.children[key]
+      if (!childNode || !childNode.value) return
+      if (isBoundaryFile(childNode.value.type)) {
+        const boundaryType = getBoundaryOriginFileType(childNode.value.type)
+        existingBoundaries.push(boundaryType)
+      }
+    })
+    return boundaryTypes.filter((type) => !existingBoundaries.includes(type))
+  }, [node.children, childrenKeys, segment])
+
   const sortedChildrenKeys = childrenKeys.sort((a, b) => {
     // Prioritize files with extensions over directories
     const aHasExt = a.includes('.')
@@ -323,6 +343,7 @@ function PageSegmentTreeLayerPresentation({
                     'segment-explorer-suggestions-toggler--expanded'
                 )}
                 onClick={() => setIsSuggestionsExpanded(!isSuggestionsExpanded)}
+                disabled={missingBoundaryTypes.length === 0}
               >
                 <ChevronDownIcon />
               </button>
@@ -402,11 +423,11 @@ function PageSegmentTreeLayerPresentation({
                 )}
               </div>
             </div>
-            {isSuggestionsExpanded && (
+            {missingBoundaryTypes.length > 0 && (
               <SegmentSuggestion
-                segment={segment}
-                node={node}
                 possibleExtension={possibleExtension}
+                missingBoundaryTypes={missingBoundaryTypes}
+                isExpanded={isSuggestionsExpanded}
               />
             )}
           </div>

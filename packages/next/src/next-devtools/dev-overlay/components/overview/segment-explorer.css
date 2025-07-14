@@ -208,9 +208,24 @@
   width: 12px;
   height: 12px;
   transform: rotate(-90deg);
+  transition: transform 0.2s ease-in-out;
 }
 .segment-explorer-suggestions-toggler--expanded svg {
   transform: rotate(0deg);
+}
+
+.segment-explorer-suggestions {
+  overflow: hidden;
+  transition:
+    max-height 0.2s ease-in-out,
+    opacity 0.2s ease-in-out;
+  max-height: 0;
+  opacity: 0;
+}
+
+.segment-explorer-suggestions--expanded {
+  max-height: 100px;
+  opacity: 1;
 }
 
 .segment-explorer-suggestions p {
