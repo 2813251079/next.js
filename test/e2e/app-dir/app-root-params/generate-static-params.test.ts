@@ -35,9 +35,8 @@ describe('app-root-params - generateStaticParams', () => {
     }
   })
 
-  // `next-types-plugin` currently only runs in Webpack.
-  // We skip deployment mode since we don't care about the deploy, we just want to
-  // check the file generated at build time.
+  // TODO update feat/type-validation-new to generate server types
+  // then update this test to check for the types
   if (!isNextDeploy && !isTurbopack) {
     it('should correctly generate types', async () => {
       expect(await next.hasFile('.next/types/server.d.ts')).toBe(true)

@@ -19,7 +19,7 @@ export type CacheLife = {
 // The default revalidates relatively frequently but doesn't expire to ensure it's always
 // able to serve fast results but by default doesn't hang.
 
-// This gets overridden by the next-types-plugin
+// TODO: make sure that feat/type-validation-new doesn't break this
 type CacheLifeProfiles =
   | 'default'
   | 'seconds'

@@ -66,7 +66,6 @@ import {
   getPossibleMiddlewareFilenames,
   getPossibleInstrumentationHookFilenames,
 } from '../../../build/utils'
-import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
 import type { LazyRenderServerInstance } from '../router-server'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
 import { PAGE_TYPES } from '../../../lib/page-types'
@@ -434,7 +433,6 @@ async function startWatcher(
 
       appFiles.clear()
       pageFiles.clear()
-      devPageFiles.clear()
 
       const sortedKnownFiles: string[] = [...knownFiles.keys()].sort((a, b) => {
         // First, prioritize regular routes over parallel routes
@@ -559,9 +557,6 @@ async function startWatcher(
         if (!(isAppPath || isPagePath)) {
           continue
         }
-
-        // Collect all current filenames for the TS plugin to use
-        devPageFiles.add(fileName)
 
         const relativePath = path.relative(dir, fileName)
 
