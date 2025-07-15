@@ -720,5 +720,10 @@
   "719": "Failed to get source map for '%s'. This is a bug in Next.js",
   "720": "A client prerender store should not be used for a route handler.",
   "721": "Render in Browser",
-  "722": "Unable to match pathname to a dynamic route"
+  "722": "Unable to match pathname to a dynamic route",
+  "723": "Dynamic href \\`%s\\` found in <Link> while using the \\`/app\\` router, this is not supported. Instead, you should use \\`path\\` and \\`params\\` props. Read more: https://nextjs.org/docs/messages/app-dir-dynamic-href",
+  "724": "Invalid <Link> with neither `href` nor `path` prop. You must provide exactly one of these props.",
+  "725": "Invalid <Link> with `params` prop but no `path` prop. `params` can only be used with `path`.",
+  "726": "Invalid <Link> with both `href` and `path` props. You must use exactly one of these props.",
+  "727": "Invalid <Link> with `searchParams` prop but no `path` prop. `searchParams` can only be used with `path`."
 }
