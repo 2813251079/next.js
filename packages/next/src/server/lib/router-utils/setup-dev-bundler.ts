@@ -566,7 +566,7 @@ async function startWatcher(
         const relativePath = path.relative(dir, fileName)
 
         // Collect ALL file paths for validator.ts (before any filtering)
-        if (opts.nextConfig.experimental.newTypedRoutes) {
+        if (opts.nextConfig.experimental.typedRoutes) {
           if (isAppPath && layoutFileRegex.test(fileName)) {
             allAppLayoutPaths.add(relativePath)
           } else if (isAppPath && validFileMatcher.isAppRouterPage(fileName)) {
