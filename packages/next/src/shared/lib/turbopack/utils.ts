@@ -185,35 +185,41 @@ export function formatIssue(issue: Issue) {
 
   if (importTraces?.length) {
     // This is the same logic as in turbopack/crates/turbopack-cli-utils/src/issue.rs
-    if (importTraces.length === 1) {
-      const trace = importTraces[0]
-      // We only display the layer if there is more than one for the trace
-      message += `Import trace:\n${formatIssueTrace(trace, '  ', !identicalLayers(trace))}`
-    } else {
-      // We end up with multiple traces when the file with the error is reachable from multiple
-      // different entry points (e.g. ssr, client)
-      message += 'Import traces:\n'
-      const everyTraceHasADistinctRootLayer =
-        new Set(importTraces.map(leafLayerName).filter((l) => l != null))
-          .size === importTraces.length
-      for (let i = 0; i < importTraces.length; i++) {
-        const trace = importTraces[i]
-        const layer = leafLayerName(trace)
-        if (everyTraceHasADistinctRootLayer) {
-          message += `  ${layer}:\n`
-        } else {
-          message += `  #${i + 1}`
-          if (layer) {
-            message += ` [${layer}]`
-          }
-          message += ':\n'
-        }
-        message += formatIssueTrace(trace, '    ', !identicalLayers(trace))
-      }
-    }
+    message += formatImportTraces(importTraces)
   }
   if (documentationLink) {
     message += documentationLink + '\n\n'
+  }
+  return message
+}
+
+export function formatImportTraces(importTraces: PlainTraceItem[][]) {
+  let message
+  if (importTraces.length === 1) {
+    const trace = importTraces[0]
+    // We only display the layer if there is more than one for the trace
+    message = `Import trace:\n${formatIssueTrace(trace, '  ', !identicalLayers(trace))}`
+  } else {
+    // We end up with multiple traces when the file with the error is reachable from multiple
+    // different entry points (e.g. ssr, client)
+    message = 'Import traces:\n'
+    const everyTraceHasADistinctRootLayer =
+      new Set(importTraces.map(leafLayerName).filter((l) => l != null)).size ===
+      importTraces.length
+    for (let i = 0; i < importTraces.length; i++) {
+      const trace = importTraces[i]
+      const layer = leafLayerName(trace)
+      if (everyTraceHasADistinctRootLayer) {
+        message += `  ${layer}:\n`
+      } else {
+        message += `  #${i + 1}`
+        if (layer) {
+          message += ` [${layer}]`
+        }
+        message += ':\n'
+      }
+      message += formatIssueTrace(trace, '    ', !identicalLayers(trace))
+    }
   }
   return message
 }
