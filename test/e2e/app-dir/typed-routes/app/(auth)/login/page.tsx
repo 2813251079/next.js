@@ -6,7 +6,7 @@ export default function LoginPage(props: PageProps<'/login'>) {
       <h2>Login Page</h2>
       <p>Please log in to continue.</p>
       <Link path="/blog/[slug]" params={{ slug: 'hello' }}>
-        Blog Post
+        Shop
       </Link>
     </div>
   )
