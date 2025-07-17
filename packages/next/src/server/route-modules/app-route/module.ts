@@ -386,6 +386,7 @@ export class AppRouteRouteModule extends RouteModule<
               // This replicates prior behavior where rootParams is empty in routes
               // TODO we need to make this have the proper rootParams for this route
               rootParams: {},
+              allowedDynamicApis: null,
               implicitTags,
               renderSignal: prospectiveController.signal,
               controller: prospectiveController,
@@ -480,6 +481,7 @@ export class AppRouteRouteModule extends RouteModule<
             type: 'prerender',
             phase: 'action',
             rootParams: {},
+            allowedDynamicApis: null,
             implicitTags,
             renderSignal: finalController.signal,
             controller: finalController,

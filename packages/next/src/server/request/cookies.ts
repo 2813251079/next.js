@@ -92,7 +92,15 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
             `Route ${workStore.route} used "cookies" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
           )
         case 'prerender':
-          return makeHangingCookies(workUnitStore)
+          if (workUnitStore.allowedDynamicApis?.cookies) {
+            // a dynamic prefetch that allows cookies
+            return makeUntrackedExoticCookies(
+              workUnitStore.allowedDynamicApis.cookies
+            )
+          } else {
+            // dynamicIO Prerender
+            return makeHangingCookies(workUnitStore)
+          }
         case 'prerender-client':
           const exportName = '`cookies`'
           throw new InvariantError(
