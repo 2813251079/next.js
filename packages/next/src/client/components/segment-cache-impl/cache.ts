@@ -412,7 +412,7 @@ export function getSegmentKeypathForTask(
   // If we're fetching using PPR, we do not need to include the search params in
   // the cache key, because the search params are treated as dynamic data. The
   // cache entry is valid for all possible search param values.
-  const isDynamicTask = task.includeDynamicData || !route.isPPREnabled
+  const isDynamicTask = task.includeDynamicData !== null || !route.isPPREnabled
   return isDynamicTask && path.endsWith('/' + PAGE_SEGMENT_KEY)
     ? [path, task.key.search]
     : [path]
@@ -1175,6 +1175,7 @@ export async function fetchRouteOnCacheMiss(
       writeDynamicTreeResponseIntoCache(
         Date.now(),
         task,
+        FetchStrategy.LoadingBoundary, // This is not a PPR page
         response,
         serverData,
         entry,
@@ -1419,6 +1420,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     fulfilledEntries = writeDynamicRenderResponseIntoCache(
       Date.now(),
       task,
+      fetchStrategy,
       response,
       serverData,
       isResponsePartial,
@@ -1438,6 +1440,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
 function writeDynamicTreeResponseIntoCache(
   now: number,
   task: PrefetchTask,
+  fetchStrategy: FetchStrategy,
   response: RSCResponse,
   serverData: NavigationFlightResponse,
   entry: PendingRouteCacheEntry,
@@ -1502,6 +1505,7 @@ function writeDynamicTreeResponseIntoCache(
   writeDynamicRenderResponseIntoCache(
     now,
     task,
+    fetchStrategy,
     response,
     serverData,
     isResponsePartial,
@@ -1528,6 +1532,7 @@ function rejectSegmentEntriesIfStillPending(
 function writeDynamicRenderResponseIntoCache(
   now: number,
   task: PrefetchTask,
+  fetchStrategy: FetchStrategy,
   response: RSCResponse,
   serverData: NavigationFlightResponse,
   isResponsePartial: boolean,
@@ -1586,6 +1591,7 @@ function writeDynamicRenderResponseIntoCache(
       writeSeedDataIntoCache(
         now,
         task,
+        fetchStrategy,
         route,
         staleAt,
         seedData,
@@ -1634,6 +1640,7 @@ function writeDynamicRenderResponseIntoCache(
 function writeSeedDataIntoCache(
   now: number,
   task: PrefetchTask,
+  fetchStrategy: FetchStrategy,
   route: FulfilledRouteCacheEntry,
   staleAt: number,
   seedData: CacheNodeSeedData,
@@ -1681,6 +1688,7 @@ function writeSeedDataIntoCache(
         staleAt,
         isPartial
       )
+      newEntry.fetchStrategy = fetchStrategy
       upsertSegmentEntry(
         now,
         getSegmentKeypathForTask(task, route, key),
@@ -1698,6 +1706,7 @@ function writeSeedDataIntoCache(
         writeSeedDataIntoCache(
           now,
           task,
+          fetchStrategy,
           route,
           staleAt,
           childSeedData,
