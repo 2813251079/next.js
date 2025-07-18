@@ -742,5 +742,9 @@
   "741": "%s must not be used within \\`unstable_cache()\\`.",
   "742": "\\`%s\\` was called inside a cache scope. Next.js should be preventing %s from being included in server components statically, but did not in this case.",
   "743": "createPrerenderSearchParamsForClientPage should not be called in cache contexts.",
-  "744": "createServerSearchParamsForServerPage should not be called in cache contexts."
+  "744": "createServerSearchParamsForServerPage should not be called in cache contexts.",
+  "745": "cacheLifeProfiles should always be provided.",
+  "746": "A private cache entry must not be retrieved from the cache handler.",
+  "747": "A default cacheLife profile must always be provided.",
+  "748": "%s cannot not be used outside of a request context."
 }
