@@ -102,10 +102,7 @@ function clearChunkCache() {
 }
 
 // Load the module exports of a chunk into the `moduleFactories` and update our chunk loading caches
-function loadModuleFactories(
-  chunkPath: ChunkPath,
-  chunkModules: CompressedModuleFactories
-) {
+function installModuleFactories(chunkModules: CompressedModuleFactories) {
   for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
     if (!moduleFactories[moduleId]) {
       if (Array.isArray(moduleFactory)) {
@@ -119,9 +116,6 @@ function loadModuleFactories(
       }
     }
   }
-  // Set both the synchronous and async chunk caches after installation.
-  loadedChunks.add(chunkPath)
-  chunkCache.set(chunkPath, loadedChunk)
 }
 
 function loadChunkPath(chunkPath: ChunkPath, source?: SourceInfo): void {
@@ -138,7 +132,8 @@ function loadChunkPath(chunkPath: ChunkPath, source?: SourceInfo): void {
   try {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
     const chunkModules: CompressedModuleFactories = require(resolved)
-    loadModuleFactories(chunkPath, chunkModules)
+    installModuleFactories(chunkModules)
+    loadedChunks.add(chunkPath)
   } catch (e) {
     let errorMessage = `Failed to load chunk ${chunkPath}`
 
@@ -150,16 +145,6 @@ function loadChunkPath(chunkPath: ChunkPath, source?: SourceInfo): void {
       cause: e,
     })
   }
-}
-
-function loadChunkUncached(chunkPath: ChunkPath) {
-  // resolve to an absolute path to simplify `require` handling
-  const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
-
-  // TODO: consider switching to `import()` to enable concurrent chunk loading and async file io
-  // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
-  const chunkModules: CompressedModuleFactories = require(resolved)
-  loadModuleFactories(chunkPath, chunkModules)
 }
 
 function loadChunkAsync(
@@ -178,8 +163,12 @@ function loadChunkAsync(
   let entry = chunkCache.get(chunkPath)
   if (entry === undefined) {
     try {
-      // Load the chunk synchronously
-      loadChunkUncached(chunkPath)
+      // resolve to an absolute path to simplify `require` handling
+      const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
+      // TODO: consider switching to `import()` to enable concurrent chunk loading and async file io
+      // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
+      const chunkModules: CompressedModuleFactories = require(resolved)
+      installModuleFactories(chunkModules)
       entry = loadedChunk
     } catch (e) {
       let errorMessage = `Failed to load chunk ${chunkPath}`
