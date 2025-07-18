@@ -728,5 +728,19 @@
   "727": "Route %s couldn't be rendered statically because it used IO that was not cached. See more info here: https://nextjs.org/docs/messages/cache-components",
   "728": "CacheSignal cannot be used in the edge runtime, because `cacheComponents` does not support it.",
   "729": "\\`experimental.ppr\\` can not be \\`%s\\` when \\`experimental.cacheComponents\\` is \\`true\\`. PPR is implicitly enabled when Cache Components is enabled.",
-  "730": "Dynamic imports should not be instrumented in the edge runtime, because `cacheComponents` doesn't support it"
+  "730": "Dynamic imports should not be instrumented in the edge runtime, because `cacheComponents` doesn't support it",
+  "731": "createPrerenderParamsForClientSegment should not be called in cache contexts.",
+  "732": "%s must not be used within \"use cache\". It can only be nested inside of another %s.",
+  "733": "createParamsFromClient should not be called in cache contexts.",
+  "734": "Unexpected work unit store.",
+  "735": "createServerParamsForRoute should not be called in cache contexts.",
+  "736": "createSearchParamsFromClient should not be called in cache contexts.",
+  "737": "createServerPathnameForMetadata should not be called in cache contexts.",
+  "738": "%s must not be used within a client component. Next.js should be preventing %s from being allowed in client components statically, but did not in this case.",
+  "739": "Route %s used \"headers\" inside \"use cache: private\". Accessing \"headers\" inside a private cache scope is not supported. If you need this data inside a cached function use \"headers\" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+  "740": "createServerParamsForServerSegment should not be called in cache contexts.",
+  "741": "%s must not be used within \\`unstable_cache()\\`.",
+  "742": "\\`%s\\` was called inside a cache scope. Next.js should be preventing %s from being included in server components statically, but did not in this case.",
+  "743": "createPrerenderSearchParamsForClientPage should not be called in cache contexts.",
+  "744": "createServerSearchParamsForServerPage should not be called in cache contexts."
 }
