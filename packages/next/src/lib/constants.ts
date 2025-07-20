@@ -1,5 +1,6 @@
 import type { ServerRuntime } from '../types'
 
+export const HTML_CONTENT_TYPE_HEADER = 'text/html; charset=utf-8'
 export const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
 export const NEXT_INTERCEPTION_MARKER_PREFIX = 'nxtI'
 

@@ -526,7 +526,7 @@ export async function handler(
               html: new RenderResult(
                 Buffer.from(previousCacheEntry.value.html),
                 {
-                  contentType: 'text/html;utf-8',
+                  contentType: 'text/html; charset=utf-8',
                   metadata: {
                     statusCode: previousCacheEntry.value.status,
                     headers: previousCacheEntry.value.headers,
@@ -740,7 +740,6 @@ export async function handler(
         generateEtags: nextConfig.generateEtags,
         poweredByHeader: nextConfig.poweredByHeader,
         cacheControl: routeModule.isDev ? undefined : cacheControl,
-        type: isNextDataRequest ? 'json' : 'html',
       })
     }
 
